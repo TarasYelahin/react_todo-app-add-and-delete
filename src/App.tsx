@@ -121,7 +121,7 @@ export const App: React.FC = () => {
 
       const finalTodo = { ...createdTodo, title };
 
-      setTodos(prev => [finalTodo, ...prev]);
+      setTodos(prev => [...prev, finalTodo]);
     } catch (error) {
       showNotification(NotificationMessage.UnableToAdd);
     } finally {
