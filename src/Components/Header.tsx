@@ -6,18 +6,20 @@ type Props = {
   onChange: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   newTodoRef: React.RefObject<HTMLInputElement>;
-  disabledInput: boolean;
+  disabledInput?: boolean;
   allCompleted: boolean;
   onToggleAll: () => void;
+  disabledFooter?: boolean;
 };
 export const Header: React.FC<Props> = ({
   newTodoText,
   onChange,
   onSubmit,
   newTodoRef,
-  disabledInput,
+  disabledInput = false,
   allCompleted,
   onToggleAll,
+  disabledFooter = false,
 }) => (
   <header className="todoapp__header">
     <button
@@ -25,6 +27,7 @@ export const Header: React.FC<Props> = ({
       className={classNames('todoapp__toggle-all', { active: allCompleted })}
       data-cy="ToggleAllButton"
       onClick={onToggleAll}
+      disabled={disabledFooter}
     />
     <form onSubmit={onSubmit}>
       <input

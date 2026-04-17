@@ -3,7 +3,13 @@
 import React from 'react';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { UserWarning } from './UserWarning';
-import { USER_ID, createTodo, deleteTodo, getTodos } from './api/todos';
+import {
+  USER_ID,
+  createTodo,
+  deleteTodo,
+  getTodos,
+  updateTodo,
+} from './api/todos';
 import { Todo } from './types/Todo';
 import { Filter } from './types/Filter';
 import { NotificationMessage } from './types/Notifications';
@@ -94,6 +100,10 @@ export const App: React.FC = () => {
 
   async function handleAddTodo(e: React.FormEvent) {
     e.preventDefault();
+    if (creating) {
+      return;
+    }
+
     const title = newTodoText.trim();
 
     if (!title) {
@@ -119,25 +129,47 @@ export const App: React.FC = () => {
 
       setNewTodoText('');
 
-      const finalTodo = { ...createdTodo, title };
-
-      setTodos(prev => [...prev, finalTodo]);
+      setTodos(prev => [...prev, createdTodo]);
     } catch (error) {
       showNotification(NotificationMessage.UnableToAdd);
     } finally {
       setTempTodo(null);
       setCreating(false);
+      newTodoRef.current?.focus();
     }
   }
 
-  function handleToggleTodo(id: number) {
+  async function handleToggleTodo(id: number) {
+    const currentTodo = todos.find(t => t.id === id);
+
+    if (!currentTodo) {
+      return;
+    }
+
+    setProcessings(prev => (prev.includes(id) ? prev : [...prev, id]));
     hideNotification();
-    void id;
+    try {
+      const updated = await updateTodo(id, {
+        completed: !currentTodo.completed,
+      });
+
+      setTodos(prev =>
+        prev.map(t =>
+          t.id === id
+            ? { ...t, completed: updated?.completed ?? !currentTodo.completed }
+            : t,
+        ),
+      );
+    } catch {
+      showNotification(NotificationMessage.UnableToUpdate);
+    } finally {
+      setProcessings(prev => prev.filter(pId => pId !== id));
+    }
   }
 
   async function handleDeleteTodo(id: number) {
     hideNotification();
-    setProcessings(prev => [...prev, id]);
+    setProcessings(prev => (prev.includes(id) ? prev : [...prev, id]));
     try {
       await deleteTodo(id);
       setTodos(currentTodos => currentTodos.filter(todo => todo.id !== id));
@@ -150,12 +182,15 @@ export const App: React.FC = () => {
 
   function handleToggleAll() {
     hideNotification();
+    setTodos(prev => prev.map(t => ({ ...t, completed: !allCompleted })));
   }
 
   const handleClearCompleted = () => {
     const completedIds = todos.filter(t => t.completed).map(t => t.id);
 
-    completedIds.map(id => handleDeleteTodo(id));
+    completedIds.forEach(id => {
+      void handleDeleteTodo(id);
+    });
   };
 
   useEffect(() => {
@@ -180,10 +215,12 @@ export const App: React.FC = () => {
           onChange={setNewTodoText}
           onSubmit={handleAddTodo}
           newTodoRef={newTodoRef}
-          disabledInput={creating}
+          disabledInput={creating || loading || processings.length > 0}
           allCompleted={allCompleted}
           onToggleAll={handleToggleAll}
+          disabledFooter={creating || loading || processings.length > 0}
         />
+
         {(visibleTodos.length > 0 || tempTodo) && (
           <MainSection
             processings={processings}
@@ -202,6 +239,7 @@ export const App: React.FC = () => {
             setFilter={setFilter}
             hasCompleted={hasCompleted}
             clearCompleted={handleClearCompleted}
+            disabledFooter={creating || loading || processings.length > 0}
           />
         )}
       </div>
